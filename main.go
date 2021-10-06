@@ -46,7 +46,7 @@ func main() {
 		command := update.Message.Text
 		username := update.Message.From.UserName
 		ok, user := checkEnableUser(config, username)
-		rsp := "ok"
+		rsp := "received"
 		if !ok {
 			rsp = fmt.Sprintf("username: %s disabled\n", username)
 		} else {

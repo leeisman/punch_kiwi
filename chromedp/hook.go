@@ -87,10 +87,10 @@ func submit(url, accountElement, accountVal, passwordElement, passwordVal, subEl
 }
 
 func targetElementByCommand(command string) string {
-	if command == "punch_in" {
+	if command == "/punch_in" {
 		return "#clockin"
 	}
-	if command == "punch_out" {
+	if command == "/punch_out" {
 		return "#clockout"
 	}
 	fmt.Errorf("not found target, command=%s\n", command)
