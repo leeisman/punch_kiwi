@@ -2,14 +2,17 @@ package chromedp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/network"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"os"
 	"time"
 
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -46,48 +49,78 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		chromedp.UserDataDir(dir),
 	)
 
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
+	var cancels []context.CancelFunc
+	defer func() {
+		for _, cancel := range cancels {
+			cancel()
+		}
+	}()
 
-	// also set up a custom logger
-	taskCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	times := 3
+	for i := 0; i <= times; i++ {
+		if i == times {
+			return errors.New("punch failed too many times, please contact helpers")
+		}
 
-	// create a timeout
-	taskCtx, cancel = context.WithTimeout(taskCtx, 1*time.Minute)
-	defer cancel()
+		allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+		cancels = append(cancels, cancel)
 
-	// ensure that the browser process is started
-	if err := chromedp.Run(taskCtx); err != nil {
-		return err
-	}
+		// also set up a custom logger
+		taskCtx, cancel := chromedp.NewContext(allocCtx)
+		cancels = append(cancels, cancel)
 
-	var ret string
-	err = chromedp.Run(taskCtx,
-		fakeLocation(),
-		network.Enable(),
-		submit(url, `#username_input`, username, `#password-input`, password, `#login-button`, targetElementByCommand(command), &ret),
-	)
-	if err != nil {
-		return err
+		// create a timeout
+		taskCtx, cancel = context.WithTimeout(taskCtx, 10*time.Second)
+		cancels = append(cancels, cancel)
+
+		// ensure that the browser process is started
+		if err := chromedp.Run(taskCtx); err != nil {
+			return err
+		}
+		err = chromedp.Run(taskCtx,
+			fakeLocation(),
+			network.Enable(),
+			submit(url, `#username_input`, username, `#password-input`, password, `#login-button`, targetElementByCommand(command)),
+		)
+		if err != nil {
+			continue
+		}
+		err = chromedp.Run(taskCtx, check(command))
+		if err != nil {
+			continue
+		}
+		if err == nil {
+			break
+		}
 	}
 	return nil
 }
 
 func fakeLocation() chromedp.Tasks {
+	min := int64(-5000000000)
+	max := int64(5000000000)
+	float := math.Pow(10, -14)
+	rand.Seed(time.Now().UnixNano())
+
+	latRandomNumber := rand.Int63n(max-min) + min
+	latRandomNumberFloat64 := float64(latRandomNumber) * float // -0.00005~0.00005, 緯度
+
+	lngRandomNumber := rand.Int63n(max-min) + min
+	lngRandomNumberFloat64 := float64(lngRandomNumber) * float // -0.00005~0.00005, 經度
+
 	permissions := &browser.GrantPermissionsParams{
 		Permissions: []browser.PermissionType{browser.PermissionTypeGeolocation},
-		//Origin:      "https://cloud.nueip.com/home",
 	}
+
 	geolocations := &emulation.SetGeolocationOverrideParams{
-		Latitude:  25.02283095064086,
-		Longitude: 121.54949954857622,
-		Accuracy:  99.999,
+		Latitude:  (25.02283095064086) + latRandomNumberFloat64,
+		Longitude: 121.54949954857622 + lngRandomNumberFloat64,
+		Accuracy:  100,
 	}
 	return chromedp.Tasks{permissions, geolocations}
 }
 
-func submit(url, accountElement, accountVal, passwordElement, passwordVal, subElement, targetElement string, res *string) chromedp.Tasks {
+func submit(url, accountElement, accountVal, passwordElement, passwordVal, subElement, targetElement string) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(accountElement, chromedp.ByID),
@@ -99,6 +132,19 @@ func submit(url, accountElement, accountVal, passwordElement, passwordVal, subEl
 		chromedp.WaitVisible(targetElement, chromedp.ByID),
 		chromedp.Click(targetElement, chromedp.ByID),
 		chromedp.WaitVisible(passwordElement, chromedp.ByID),
+	}
+}
+
+func check(command string) chromedp.Tasks {
+	element := ""
+	if command == "/punch_in" {
+		element = "/html/body/div[3]/div/div[1]/div[5]/div[1]/div/div[2]/div[1]/div[1]/div/div"
+	}
+	if command == "/punch_out" {
+		element = "/html/body/div[3]/div/div[1]/div[5]/div[1]/div/div[2]/div[1]/div[2]/div/div"
+	}
+	return chromedp.Tasks{
+		chromedp.WaitVisible(element, chromedp.BySearch),
 	}
 }
 
