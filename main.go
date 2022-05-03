@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"punch_kiwi/chromedp"
@@ -73,6 +74,9 @@ func checkEnableUser(config *Config, username string) (bool, *User) {
 }
 
 func commandExecute(command string, user *User) error {
+	if command != "/punch_in" && command != "/punch_out" {
+		return errors.New("請不要亂打指令")
+	}
 	ch := make(chan error)
 	go func() {
 		err, _ := chromedp.NewHooker(URL, user.ID, user.Password, command)
