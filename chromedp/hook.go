@@ -89,9 +89,7 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		if err != nil {
 			continue
 		}
-		if err == nil {
-			break
-		}
+		break
 	}
 	return nil
 }
@@ -131,7 +129,6 @@ func submit(url, accountElement, accountVal, passwordElement, passwordVal, subEl
 		chromedp.Submit(subElement),
 		chromedp.WaitVisible(targetElement, chromedp.ByID),
 		chromedp.Click(targetElement, chromedp.ByID),
-		chromedp.WaitVisible(passwordElement, chromedp.ByID),
 	}
 }
 
