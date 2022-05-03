@@ -3,6 +3,8 @@ package chromedp
 import (
 	"context"
 	"fmt"
+	"github.com/chromedp/cdproto/browser"
+	"github.com/chromedp/cdproto/emulation"
 	"io/ioutil"
 	"os"
 	"time"
@@ -62,6 +64,7 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 
 	var ret string
 	err = chromedp.Run(taskCtx,
+		fakeLocation(),
 		network.Enable(),
 		submit(url, `#username_input`, username, `#password-input`, password, `#login-button`, targetElementByCommand(command), &ret),
 	)
@@ -69,6 +72,19 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		return err
 	}
 	return nil
+}
+
+func fakeLocation() chromedp.Tasks {
+	permissions := &browser.GrantPermissionsParams{
+		Permissions: []browser.PermissionType{browser.PermissionTypeGeolocation},
+		//Origin:      "https://cloud.nueip.com/home",
+	}
+	geolocations := &emulation.SetGeolocationOverrideParams{
+		Latitude:  25.02283095064086,
+		Longitude: 121.54949954857622,
+		Accuracy:  99.999,
+	}
+	return chromedp.Tasks{permissions, geolocations}
 }
 
 func submit(url, accountElement, accountVal, passwordElement, passwordVal, subElement, targetElement string, res *string) chromedp.Tasks {
