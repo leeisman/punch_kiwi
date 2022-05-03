@@ -49,6 +49,13 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		chromedp.UserDataDir(dir),
 	)
 
+	var cancels []context.CancelFunc
+	defer func() {
+		for _, c := range cancels {
+			c()
+		}
+	}()
+
 	times := 3
 	for i := 0; i <= times; i++ {
 		if i == times {
@@ -56,15 +63,15 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		}
 
 		allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-		defer cancel()
+		cancels = append(cancels, cancel)
 
 		// also set up a custom logger
 		taskCtx, cancel := chromedp.NewContext(allocCtx)
-		defer cancel()
+		cancels = append(cancels, cancel)
 
 		// create a timeout
 		taskCtx, cancel = context.WithTimeout(taskCtx, 10*time.Second)
-		defer cancel()
+		cancels = append(cancels, cancel)
 
 		// ensure that the browser process is started
 		if err := chromedp.Run(taskCtx); err != nil {
