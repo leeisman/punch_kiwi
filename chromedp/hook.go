@@ -51,8 +51,8 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 
 	var cancels []context.CancelFunc
 	defer func() {
-		for _, c := range cancels {
-			c()
+		for _, cancel := range cancels {
+			cancel()
 		}
 	}()
 
