@@ -6,6 +6,8 @@ import (
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/emulation"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"os"
 	"time"
 
@@ -75,14 +77,25 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 }
 
 func fakeLocation() chromedp.Tasks {
+	min := int64(-5000000000)
+	max := int64(5000000000)
+	float := math.Pow(10, -14)
+	rand.Seed(time.Now().UnixNano())
+
+	latRandomNumber := rand.Int63n(max-min) + min
+	latRandomNumberFloat64 := float64(latRandomNumber) * float // -0.00005~0.00005, 緯度
+
+	lngRandomNumber := rand.Int63n(max-min) + min
+	lngRandomNumberFloat64 := float64(lngRandomNumber) * float // -0.00005~0.00005, 經度
+
 	permissions := &browser.GrantPermissionsParams{
 		Permissions: []browser.PermissionType{browser.PermissionTypeGeolocation},
-		//Origin:      "https://cloud.nueip.com/home",
 	}
+
 	geolocations := &emulation.SetGeolocationOverrideParams{
-		Latitude:  25.02283095064086,
-		Longitude: 121.54949954857622,
-		Accuracy:  99.999,
+		Latitude:  (25.02283095064086) + latRandomNumberFloat64,
+		Longitude: 121.54949954857622 + lngRandomNumberFloat64,
+		Accuracy:  100,
 	}
 	return chromedp.Tasks{permissions, geolocations}
 }
