@@ -2,16 +2,17 @@ package chromedp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/network"
 	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -48,30 +49,42 @@ func (h *Hooker) Hooking(url, username, password, command string) error {
 		chromedp.UserDataDir(dir),
 	)
 
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
+	times := 3
+	for i := 0; i <= times; i++ {
+		if i == times {
+			return errors.New("punch failed too many times, please contact helpers")
+		}
 
-	// also set up a custom logger
-	taskCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+		allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+		defer cancel()
 
-	// create a timeout
-	taskCtx, cancel = context.WithTimeout(taskCtx, 1*time.Minute)
-	defer cancel()
+		// also set up a custom logger
+		taskCtx, cancel := chromedp.NewContext(allocCtx)
+		defer cancel()
 
-	// ensure that the browser process is started
-	if err := chromedp.Run(taskCtx); err != nil {
-		return err
-	}
+		// create a timeout
+		taskCtx, cancel = context.WithTimeout(taskCtx, 10*time.Second)
+		defer cancel()
 
-	var ret string
-	err = chromedp.Run(taskCtx,
-		fakeLocation(),
-		network.Enable(),
-		submit(url, `#username_input`, username, `#password-input`, password, `#login-button`, targetElementByCommand(command), &ret),
-	)
-	if err != nil {
-		return err
+		// ensure that the browser process is started
+		if err := chromedp.Run(taskCtx); err != nil {
+			return err
+		}
+		err = chromedp.Run(taskCtx,
+			fakeLocation(),
+			network.Enable(),
+			submit(url, `#username_input`, username, `#password-input`, password, `#login-button`, targetElementByCommand(command)),
+		)
+		if err != nil {
+			continue
+		}
+		err = chromedp.Run(taskCtx, check(command))
+		if err != nil {
+			continue
+		}
+		if err == nil {
+			break
+		}
 	}
 	return nil
 }
@@ -100,7 +113,7 @@ func fakeLocation() chromedp.Tasks {
 	return chromedp.Tasks{permissions, geolocations}
 }
 
-func submit(url, accountElement, accountVal, passwordElement, passwordVal, subElement, targetElement string, res *string) chromedp.Tasks {
+func submit(url, accountElement, accountVal, passwordElement, passwordVal, subElement, targetElement string) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(accountElement, chromedp.ByID),
@@ -109,9 +122,22 @@ func submit(url, accountElement, accountVal, passwordElement, passwordVal, subEl
 		chromedp.SendKeys(passwordElement, passwordVal, chromedp.ByID),
 		chromedp.WaitVisible(passwordElement, chromedp.ByID),
 		chromedp.Submit(subElement),
-		chromedp.WaitVisible(targetElement, chromedp.ByID),
-		chromedp.Click(targetElement, chromedp.ByID),
-		chromedp.WaitVisible(passwordElement, chromedp.ByID),
+		//chromedp.WaitVisible(targetElement, chromedp.ByID),
+		//chromedp.Click(targetElement, chromedp.ByID),
+		//chromedp.WaitVisible(passwordElement, chromedp.ByID),
+	}
+}
+
+func check(command string) chromedp.Tasks {
+	element := ""
+	if command == "/punch_in" {
+		element = "/html/body/div[3]/div/div[1]/div[5]/div[1]/div/div[2]/div[1]/div[1]/div/div"
+	}
+	if command == "/punch_out" {
+		element = "/html/body/div[3]/div/div[1]/div[5]/div[1]/div/div[2]/div[1]/div[2]/div/div"
+	}
+	return chromedp.Tasks{
+		chromedp.WaitVisible(element, chromedp.BySearch),
 	}
 }
 

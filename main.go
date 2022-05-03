@@ -73,9 +73,14 @@ func checkEnableUser(config *Config, username string) (bool, *User) {
 }
 
 func commandExecute(command string, user *User) error {
+	ch := make(chan error)
 	go func() {
-		chromedp.NewHooker(URL, user.ID, user.Password, command)
+		err, _ := chromedp.NewHooker(URL, user.ID, user.Password, command)
+		if err != nil {
+			ch <- err
+		}
+		ch <- nil
 	}()
 	fmt.Println(user.Username, command)
-	return nil
+	return <- ch
 }
