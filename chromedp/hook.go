@@ -122,9 +122,9 @@ func submit(url, accountElement, accountVal, passwordElement, passwordVal, subEl
 		chromedp.SendKeys(passwordElement, passwordVal, chromedp.ByID),
 		chromedp.WaitVisible(passwordElement, chromedp.ByID),
 		chromedp.Submit(subElement),
-		//chromedp.WaitVisible(targetElement, chromedp.ByID),
-		//chromedp.Click(targetElement, chromedp.ByID),
-		//chromedp.WaitVisible(passwordElement, chromedp.ByID),
+		chromedp.WaitVisible(targetElement, chromedp.ByID),
+		chromedp.Click(targetElement, chromedp.ByID),
+		chromedp.WaitVisible(passwordElement, chromedp.ByID),
 	}
 }
 
